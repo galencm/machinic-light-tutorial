@@ -168,7 +168,7 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
         Note: the photo and code includes two buttons, one button is wired to standard pin (17) and used to reset homie to unconfigured more so that it can be discovered and connected. All homie things (inputs, sensors, etc)will have a reset button.
     * Extending things or _A thousand and one things_
 
-        A button is perhaps the simplest thing, but other basic forms could be very useful such as a variety of sensors (pressure, light, proximity) and inputs (slider, grid). One could imagine a near future where physical things or sensors are 3d printed or computationally fabricated, already containing most necessary circuitry with only minimal modification required.
+        A button is perhaps the simplest thing, but other basic forms could be very useful such as a variety of sensors (pressure, light, proximity) and inputs (slider, grid). One could imagine a near future where physical things or sensors are 3d printed or computationally fabricated, already containing most necessary circuitry with only minimal modification required. Other protocols are also possible, such as things using zeromq or zyre.
 
         Thing models are in the `machinic-tangle` package following a naming scheme of model_<thing_type>.xml
 
