@@ -27,6 +27,14 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
         ./install-light.sh
         ```
 
+    * **Automount Note**: window manager automounting can interfere with connecting to or using digital cameras. I have created a simple package that addresses this by stopping any automount processes. [watch-for-process](https://github.com/galencm/watch-for-process)  which can be run as a script or installed as a system service(`install_as_service.sh`):
+
+    ```
+    $ git clone https://github.com/galencm/watch-for-process
+    $ cd watch-for-process/
+    $ sudo ./watch_for_process.py gpho
+    ```
+
 * The Slurp and Sequence System (SAUCY)
     * a sketch
 
