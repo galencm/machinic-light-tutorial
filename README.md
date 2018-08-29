@@ -264,9 +264,112 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
         ```
 
         then the camera(s) should click and the redis pane will show keys and bytes being written to the db.
+    * device configuration or _zooming always or sometimes with ennui_
 
+        slurping simply works, but what if we want the device to be configured in some manner first, such as setting the zoom?
 
-    * refine with device configuration
+        This has a couple of challenges, devices may or may not preserve state depending on resets or power cycling. Devices may have different ways to be configured. Even within a way of configuration different devices may require different settings, such as the propsets used by chdk-supported cameras.
+
+        Finally this variety should be be structured in a way that allows to be quickly extensible in a way that allows settings to be incrementally added as new devices are tested or settings needed.
+
+        The package enn-ui attempts to solve these concerns:
+        * enn-dev: a gui for configured devices that can show connected/disconnected devices, apply and test settings, and specify settings conditionally based on environment variables.
+        * enn-env: a basic gui for viewing and modifying environment vars. These vars will likely be modified by other processes or things.
+        * `reference.xml`: a file containing a list of devices and configuration methods along with specific calls for configuration methods.
+        * enn-db: a commandline program to convert `reference.xml` into lookup values on the database. Commands such as `slurpst` and `slurpif` used these lookups to set state before slurping.
+
+        Before running `enn-dev`, populate the device and script lookup keys:
+
+        ```
+        enn-db --db-host 127.0.0.1 --db-port 6379
+        ```
+
+        This only needs to be done once for a persistent database or after a modification of `reference.xml`.
+
+        Setting zoom
+
+        start the gui:
+
+        ```
+        enn-dev --size=1500x800 -- --db-host 127.0.0.1 --db-port 6379
+        ```
+
+        If a device is discovered, various information should be displayed along with a green bar indicated that device is connected. Unplug the device and the bar will turn to gray. Devices are displayed horizontally and stale devices can be cledared by pressing the button at the top of the window.
+
+        **Chdk Note**: some devices may slurp without chdk, but need chdk for settings such as zoom. Chdk can be installed to run automatically when the camera powers on, or can be loaded as a firmware update by menu selection. See various tutorials online.
+
+        **Automount Note**: if a device is not discovered when connected and powered on or is displayed in a file manager, automount may be interfering, see [watch-for-process](https://github.com/galencm/watch-for-process) and note in _Setup and Preparation_.
+
+        At the top of the window we can see that there is a caption "zoom" with an input box beside it. This is generated from the lookup keys. Enter a numerical value(future versions of `reference.xml` should contain minimum, maximum and step values) such as 2 and press enter, the box should glow green. Next press the "set state" button to store in the database. Stored values can be checked by pressing the  "get state" button.
+
+        Press the "preview" button, on some cameras you may hear the zoom setting ... The slurped image will be opened with `dzz-ui`.
+
+        Slurping with these settings can also be done from the commandline:
+
+        **slurpst**: slurp, first looking up and applying any state settings. State settings will always be set without checking any conditions.
+
+        ```
+        keli neo-slurpst _ _ --db-host 127.0.0.1 --db-port 6379
+        ```
+
+        Setting zoom conditionally
+
+        Press the "new cond" button at lower left of the device information. A form will be created to script conditions and settings.
+
+            * name: a descriptive name, otherwise a uuid will be used
+            * _add conditions_(use keyling): specify conditions that must be satisfied to set settings. For example, perhaps a value called width must be between 2 and 5 and another value height between 3 and 8 to set zoom to 2.
+            *_add settings_ (use 'foo = bar' per line): settings to set, the "preview" button beneath allows testing of settings.
+            * _add post calls_(use keyling): And calls to run post slurp. `slurpif` and `slurpst` supports this.
+
+        One of the goals of conditional scripting is to avoid the need to manually reconfigure the device for repetitive configurations (such as the same height, width, and depth of a book). It also looks forward to a more sensor or input driven way of configuration. For example sensor things providing height, width, and depth values could be routed store those values in the environment var key which is then used to automatically configure devices. Or sensor data could be used to set servos to adjust device position or some other modifying configuration.
+
+        Keyling is a dsl initially created for `fold-ui` and then used in `dzz-ui`, it is designed for working with data in a dictionary form such as found in a redis hash key that is passed in as the sort of context for the keyling script. The [machinic-keli](https://github.com/galencm/machinic-keli) package provides calls that are structured for keyling calls, often accepting the key address and field as parameters with the command then handling the lookup from the database and desired modifications.
+
+        Keyling will be covered more with fold-ui, but roughly a set of statements are in paranthesis, with a comma after each. Statements are evaluated sequentially, with the first false causing the entire statement to return as failure. All conditions must evaluate as true for a success result. A few simple examples:
+
+        ```
+        ([bar],) #if field bar exists evaluate as true (success!)
+
+        ([bar]!,) #if field bar does not exist evaluate as true (success!)
+
+        ([bar] > 5,) #if contents of field bar greater than int(5) evaluate as true (success!)
+        ```
+
+        so for example a book might involve with the environment var dictionary/hash used as context for _width_, _height_, and _depth_ values.
+
+        ```
+        (
+        [width] > 5,
+        [width] < 7,
+        [height] > 5,
+        [height] < 7,
+        [depth] > 5,
+        [depth] < 7,
+        )
+        ```
+
+        and if success set `zoom = 4`. As you can see the syntax is somewhat clumsy, with a need for a few more operators and support for other types such as comparing floats.
+
+        There is also a pane for _post calls_ which is keyling that is run, for example a call to rotate a slurped image.
+
+        Choose a name and press the "store" button, all panes should glow green to indicate valid syntax. If a pane glows red, it contains a syntactical error and has not been stored.
+
+        Testing a conditional with `enn-env`:
+
+        enn-env displays, creates and updates stored environment variables which are basically a redis hash key following a naming convention machinic:env:<db host>:<db port>. It is a minimal gui. The expectation is that these env vars will be created and modified by various things (such as sensing things), programs and processes as needed.
+
+        ```
+        enn-env -- --db-host 127.0.0.1 --db-port 6379
+        ```
+
+        Using the _create field_ and _field value_ inputs set "width"  to 6 , "height" to 6, and "depth" to 6. Try using `slurpif` from the commandline and then try setting "depth" to 10 and running `slurpif` again.
+
+        **slurpif**: lookup and evaluate conditions, only if conditions are satisfied, set settings and slurp
+
+        ```
+        keli neo-slurpif _ _ --db-host 127.0.0.1 --db-port 6379
+        ```
+
     * realtime tools
         * fold-ui
         * dzz-ui
