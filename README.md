@@ -370,7 +370,111 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
         keli neo-slurpif _ _ --db-host 127.0.0.1 --db-port 6379
         ```
 
-    * realtime tools
+    * realtime visualization and just-in-time structure tailoring
+
+        With reliable slurping and storing of glworbs(or items), focus and concerns can shift to other areas. Such as:
+            * are all needed items in the db
+            * if there is a structure (such as the page of a book), is there enough information to assemble items to match this structure or tools to do so.
+            * how to observe the overall progress of of items or structure from a few hundred to perhaps a few thousand
+            * how to specify and highlight problematic conditions in a way that can be easily zoomed in on and corrected
+            * how to easily make changes to a single item or replicate across a set of items
+            * realtime visualization of the db and any user specified aspects to accurately reflect th state of the work-in-progress
+
+        Two guis `fold-ui` and `dzz-ui` exist to address these concerns. Together they try to make getting(and making) a sense of the project state that is simple to see and easy to modify or adjust.
+
+            * **Fold-ui**: High level, realtime visualization of items and color coding according to user defined specifications. Plugins and views allow for further interactions such as displaying images, editing db values or writing keyling scripts. Fold-ui should provide a sense of of the state of the work-in-progress from database empty of items, to a satisfactory collection that can be exported, archived or outputted to another toolchain.
+            * **Dzz-ui**: Mid level, interact with single items to define structural characteristics to be broadly applied. For example: specifying regions to be ocrd and a rule to handle the result if it is an integer (or between a range of integers). Dzz-ui's are imagined to work sort of like pop-ups with the gui opened and closed as needed to specify or modify and updating current state across open windows. Dzz-ui should be useful before, during and after items are slurped. Narrow in functionality, `dzz-ui` may be useful to other programs or processes, such as `enn-dev` which uses it to display slurped images.
+
+        We will start by learning how fold-ui approaches displaying database items and then using to dzz-ui to define some or notate some important elements of our project that fold-ui can then display.
+
+        Running fold-ui:
+
+        ```
+        $ fold-ui --size=1500x800 -- --db-port 6379 --db-host 127.0.0.1
+        ```
+
+        The larger the monitor the better for fold-ui, it appears as a set of tabs:
+            * specify: create specifications that are used to classify cells. Create palettes for specification color-coding.
+            * overview: a view of all cells, classified, arranged and color-coded according to specifications
+            * folds: a closer view on a subset of columns from the overview. Columns can be unfolded to display contents using various views/plugins.
+            * views: Configure view plugins that are used in the folds tab
+            * hooks: Events that can have keyling script added and will be run.
+            * bindings: keyboard shortcuts, also serves as sort of a documentation of some functionality.
+
+        We can get an immediate sense of how this might work by generating a large amount of items and playing around with the interface. Fold-ui includes a commandline tool to do this called `fairytale` which can be combined with other tools that generate sample images. If we do not want this material to interfere with with our current project we can start a redis-server (with keyspace notifications in config) on a different port, perhaps 7379 and in a different directory(otherwise existing dump.rdb will be used). This is part of the light approach to treat databases as central but also lightweight.
+
+        So let's generate a 90 item boook! To show off some aspects of fold-ui, our boook will be incomplete, it is missing a few items.
+
+        We will do this all in the `/tmp` directory since it is only a prototype to test fold-ui behavior. Adapted from the fold-ui README:
+
+        ```
+        $ cd /tmp
+        $ printf "notify-keyspace-events KEA\nSAVE 60 1\n" >> redis.conf
+        $ redis-server redis.conf --port 7379 &
+
+        $ primitives-generate-boook --title boook --section foo 30 full --section bar 30 full --section baz 30 full --manifest csv --verbose
+
+        $ fold-ui-fairytale --ingest-manifest boook.csv --ingest-map filename binary_key --ingest-as-binary filename --structure-missing 10 --db-del-pattern "glworb:*" --db-port 7379
+        ```
+
+        Notice the `--structure-missing 10` parameter when calling `fold-ui-fairytale`. Fairytale has a variety of parameters for structuring and destructing material it creates or adds. To see all parameters run `fold-ui-fairytale -h`.
+
+        Later if we want to stop the redis server, we can do so with the command:
+
+        ```
+        redis-cli -p 7379 shutdown
+        ```
+
+        We should start fold-ui:
+
+        ```
+        $ fold-ui --size=1500x800 -- --db-port 7379 --db-host 127.0.0.1
+        ```
+
+        When fold-ui first stars if we click on the overview tab we should see a rectangular grid of gray boxes. These are items in the database that do no match any specification (referred to as a spec). Try setting _column_slots_ to 10 and pressing enter, try clicking somewhere on the boxes. Clicking on the boxes will move the interface to the _folds_ tab with those columns in a horizontal accordion. Nothing is visible so we need to create a spec.
+
+        Creating a spec assumes that we have some sense of the structure that we want our items to be in. There are other tools for exploring redis keys, the simplest being `redis-cli` and fold-ui includes only a basic sampling of items fields and values in the _views_ tab.
+
+        For example we might have a set of items that roughly look like:
+            * binary_key: key of a slurped binary blob
+            * created: timestamp
+
+        Perhaps more keys are added as we sketch out more of the structure such as a _page_number_ field for any regions that ocr to an integer or a _chapter_ field that is filled out according to a rule that checks for _page_number_ field between certain values and fills in _chapter_ field correctly.
+
+        There may also be additional metadata fields such as device settings used to slurp or working fields used for ocr values. Metadata may also be included at slurp such as some sort of increment or counter to allow sorting by other sequences.
+
+        Depending on the structure we are working with (or working towards) different approaches may make sense:
+        * a book, which already contains a great deal of useful structural information as a collection of sections. Each section can be specced and given an expected (rough, there may be more or less) amount of items. Perhaps these sections map to chapters along with bindings and other nonchapter material. This sectioning makes it easy to see where items are missing or duplicated in a more granular way than just _10 missing pages from 90 expected_.
+        * other more clever or crude approaches to be developed and shared. Depending on how standard or nonstandard the material is, it seems like there is a lot of potential for optimization or exploration.
+
+        A spec defines the visual aspect of a grid box with regions color-coded based on the presence of various item fields. These fields are given a color(the default color that applies to any field value) and colors can be defined for specific field values (for example: the field part is purple, with red for a value of part1, blue for part2, green for part3). Colors are defined with palette things.
+
+        Regions in a spec can also be toggled to have different properties:
+        * primary: a field that all items must have.
+        * sortby: sort items by this field
+        * continuous: the values of this field should be continuous(incrementing one by one) if not a texture of horizontal bars will be overlaid on discontinuous boxes
+        * overlay: for fields containing a key to a binary blob. Overlays an resized image on the box. Useful for seeing that all images are rotated or present.
+
+        Palette thing. The palette thing defines default and value-specific colors along with optional amounts.
+        * autogen (checkbox): if checked automatically add name and color for found values of field.
+        * sequence:
+        * color: select color, graphics will update on any change
+        * field name: name to map color to spec
+        * value names: specific-value names
+            * color
+            * expected amount
+            * subsequence: not yet implemented
+
+        Specs and palette things can be created and modified as needed. First we can click the "create spec" button on the bottom left pane of the _specify_ tab. We can see a box or cell preview that shows three of the same in vertical row to give a sense of how it will look tiled. The region names are followed by inputs to enter field names and further right, checkboxes to toggle aspects for the field. In the _center_ input enter "section", this will be our primary key.
+
+        Notice that there is still no color, to add a color we need a palette thing. Click on the "create palette thing" button in the lower right corner. A widget will be created with a random color and random name. Try changing the name to "section". Check out the _folds_ tab
+
+        What about specific sections since we know that foo, bar, and baz make up most of our boook? They can be added in the palette thing widget next to the name. Check out the _folds_ tab again. the cells should be multi-colored.
+
+        The colors seem fairly scattered. Try clicking the _sortby_ checkbox for the center region. This will sort by those values.
+
+        Now we are ready to see what is missing. We will add a field without adding a a palette since it will have many integer values, but we want to see if it is continutous. So set the _top_ region to "sequence" and check the **sortby** and **continuous** checkboxes. Since we have specified these values as continuous, discontinuous cells will be given a.n overlay texture of horizontal bars. Check out the _overview_ tab and click on a discontinous cell.
+
         * fold-ui
         * dzz-ui
     * Modifying, Improving, Extending
