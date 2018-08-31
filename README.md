@@ -475,6 +475,50 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
 
         Now we are ready to see what is missing. We will add a field without adding a a palette since it will have many integer values, but we want to see if it is continutous. So set the _top_ region to "sequence" and check the **sortby** and **continuous** checkboxes. Since we have specified these values as continuous, discontinuous cells will be given a.n overlay texture of horizontal bars. Check out the _overview_ tab and click on a discontinous cell.
 
-        * fold-ui
+        In the _folds_ tab, each fold shows vertically the cells contained(a grey cell is an empty placeholder) and opening one will show a view of those items. Views(called ViewViewers in the code) are intended to be a modular way of modifying different aspects of the item. The default view, called edit displays a list of of the key:value or field:value pairs that make up the item, these can be modified and written to the db, highlighted for as an environment var(with the _$_), deleted(with the _X_). Some fields are in capitals and begin with _META__, these are fields not from the database but used internally by fold-ui, such as storing the name of the key or any time-to-live (expiration) values. Press tab to cycle through the available views.
+
+        Views can be configured in the _views_ tab, what if we would like to see the images that have been slurped? On the left pane of the _views_ tab we can click on _ImageViewViewerConfig_ and select the field that we know contains an address of a binary blob. If we don't know the field, the right pane might offer some help. For a small number of items, the value of each field is loaded with all available ViewViewers and the result is displayed, if a field contains an reference to an image it should be visible. In this case by scrolling down, we can see that it is _binary_key_. So set the _source key_ input to _binary_key_, return the _folds_ tab and try tabbing through the views.
+
+        The default size of the views is a little wonky, ideally legibility of text would be preserved down to very small sizes and textboxes would scale correctly. In spite of these usability issues, fold-ui has a few default hotkeys for views that can be useful:
+        * Ctrl+up: scale items larger, very large items can be scrolled around by clicking anddragging.
+        * Ctrl+down: scale items smaller
+        * Ctrl+left: increase rows of items (rows increase until items are displayed as a single column)
+        * Ctrl+right: decrease rows of items (rows decrease until items are displayed as a single row)
+
+        This gives some flexibility in viewing, want to see images in two columns as thumbnails and then zoom in? Ctrl-left a few times and then Ctrl-up/down as needed. Scripting textbox too small? Increase the scale until it's usable.
+
+        Most settings or configuration made within fold-ui should persist from session to session, settings are stored and loaded from `~/.config/fold/session.xml`.
+
+        **Discontinuities, displaying and correcting**
+
+        Looking at the folds we can see discontinuous regions, but how large is the discontinuity? It could be 1 item or 5 items. A way to to see the missing items more exactly is to specify an expected or rough amount in the palette thing for a named-value and then to check the **sparse_found** checkbox in the _overview_ tab. Now missing values should be indicated by a grey cell, these placeholding cells are visible but will have no associated views in a fold.
+
+        With a sense of what is missing we can try to fill in the blanks, this example is a little contrived since we are working off generated material, but should give a sense of how the gui responds:
+        * using `fairytale`:
+
+            use `less -N boook.csv` to display files with line numbers, and ingest the missing items according to the sequence number. For example the call below ingests lines 5 and 6:
+
+            ```
+            fold-ui-fairytale --ingest-manifest boook.csv --ingest-map filename binary_key --ingest-manifest-lines 5 6 --ingest-as-binary filename --db-port 7379
+            ```
+
+        * using EmptyViewViewer (not yet implemented):
+
+            Useful if slurping using a camera or other device. Run a keyling script to slurp and attach missing metadata to "fill in" the missing cell. Responding to the database events, fold-ui will update.
+
+        ** Exporting **
+
+        If everything looks good we might want to export the images as files. To do this we will run a keyling script on all of the items that given the key address and field name will lookup the field value as a key and dump the bytes as a file. To specify the field to use we will use the highlight button in the edit view. The highlight button is the dollar sign (**$**) beside each row in the edit view. When clicked, the highlight button sets the environment variable **$SELECTED_KEY** which we can then use in our dumping script. The other environment variables we will need are **[*]** or **$SOURCEKEY**, **$DB_PORT** and **$DB_HOST**.
+
+        ```
+        ($(<"keli src-artifact $SOURCEKEY $SELECTED_KEY --filename tutorial_$sequence.jpg --path /tmp --db-host $DB_HOST --db-port $DB_PORT">),)
+        ```
+
+        Notice that the keyling script above also includes $sequence in lowercase, values of an items field can be substituted by prefacing the field name with a $. So $sequence will attempt substitute with the value of the sequence field (if it exists).
+
+        To run the script we will use the _Script View_ which validates and runs a keyling script on a single cell or all cells. The script can also be stored in the gui by entering an name in the _aliased name_ input and pressing the **add to aliased** button. A button with the name will then be visible in the script view, pressing this button will copy the contents into the script window but not run it, one of the _run script_ buttons must still be pressed.
+
+        Press the **run script on all** button and run `ls -haltr` in the `/tmp` directory. Images named something like `tutorial_35.jpg` should be appearing.
+
         * dzz-ui
     * Modifying, Improving, Extending
