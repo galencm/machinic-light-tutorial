@@ -1,0 +1,40 @@
+<machine>
+  <session>
+    <script raw="" ling="keyling" hook="on_add"/>
+    <view highlighted="binary_key"/>
+    <view resolution="1000" source_key="binary_key"/>
+    <script name="dzz" script="($(&lt;&quot;dzz-ui --size=1500x800 -- --db-key $SOURCEKEY --db-key-field $SELECTED_KEY --db-host $DB_HOST --db-port $DB_PORT&quot;&gt;),)" visible="True"/>
+    <palette name="section" color="#ffffff" order_value="1.0">
+      <possibility color="#ff3232" name="foo" rough_amount="0"/>
+      <possibility color="#19ff52" name="bar" rough_amount="0"/>
+      <possibility color="#3619ff" name="baz" rough_amount="0"/>
+    </palette>
+    <cellspec spec_for="759cb90a_6a9e_4f21_b971_e4e3abe8b0c0" primary_layout_field="center" overlay_key="">
+      <map name="layout_map">
+        <element name="top" value="sequence"/>
+        <element name="bottom" value="None"/>
+        <element name="left" value="None"/>
+        <element name="right" value="None"/>
+        <element name="center" value="section"/>
+      </map>
+      <map name="layout_margins">
+        <element name="top" value="5"/>
+        <element name="bottom" value="5"/>
+        <element name="left" value="5"/>
+        <element name="right" value="5"/>
+      </map>
+      <map name="layout_meta">
+        <element name="primary">
+          <item area="" name="center"/>
+        </element>
+        <element name="sortby">
+          <item area="sequence" name="top"/>
+        </element>
+        <element name="continuous">
+          <item area="sequence" name="top"/>
+        </element>
+      </map>
+    </cellspec>
+    <structure cell_width="40" cell_height="40" column_slots="5" sources="True"/>
+  </session>
+</machine>

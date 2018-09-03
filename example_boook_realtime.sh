@@ -32,6 +32,10 @@ redis-server redis.conf --port $DB_PORT &
 # generate a boook with 3 sections of 30 pages each plus covers and title page, and toc
 primitives-generate-boook --title boook --section foo 30 full --section bar 30 full --section baz 30 full --manifest csv --verbose
 
+# copy session.xml for fold-ui
+# this will overwrite existing session
+cp example_boook_fold_ui_session.xml ~/.config/fold/session.xml
+
 # start fold-ui to show realtime updates
 echo "starting fold-ui"
 fold-ui --size=1500x800 -- --db-port $DB_PORT --db-host $DB_HOST &
