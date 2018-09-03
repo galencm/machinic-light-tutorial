@@ -520,5 +520,51 @@ _a tutorial to create a book scanner (or system to slurp and sequence images) us
 
         Press the **run script on all** button and run `ls -haltr` in the `/tmp` directory. Images named something like `tutorial_35.jpg` should be appearing.
 
-        * dzz-ui
-    * Modifying, Improving, Extending
+        **Domain Specific Structure**
+
+        When we do not have the luxury of generated material with prestructured metadata, we may have to create our own structurings. Dzz-ui can help with this. Dzz-ui is an interface that combines:
+        * selection of rectangles on an image
+        * ocring of selected rectangles
+        * a simplified interface to generating ruling scripts
+        * generation of keyling scripts that can then be copied and pasted into fold-ui or run across all fold-ui keys from dzz-ui
+
+        The general idea behind the rectangle selection, ocring, and ruling rules is that something like a book already contains much useful structure. Page numbers often appear in consistent places, roman numerals may indicate an introduction, chapter names may be on every other page in the top center and so on. Dzz-ui allows one to specify an generality(called a regionpage in dzz-ui, not a reference to a book page) such as _page_numbers_, select regions where they are found(using images) such as bottom left and bottom right, and then define a rule that says if either of these rectangles contains an integer then set the page_number field to that value. Dzz-ui then generates the necessary scripts, shell calls using keli to crop the regions from the image, calls to tessarct to ocr the regions and store the result in the glworb, calls to run the ruling script and write any fields and values if a rule applies.
+
+        These generated scripts that tie together the calls can then be run immediately, pasted into a shell script or added to the fold-ui on_add hook to be run when items are added to the database. Notice that many of the keyling shell calls use the prefix _$$(_ instead of _$(_ that has been used earlier, this indicates a blocking call since calls must occur in a sequence.
+
+        We can call dzz-ui from the commandline, but it would be much better to simply call it from fold-ui where we can see all the images. To do this we can add a keyling script that calls dzz-ui with the correct environment vars and add it as an aliased script.
+
+        In fold-ui copy the following script in the script view:
+
+        ```
+        ($(<"dzz-ui --size=1500x800 -- --db-key $SOURCEKEY --db-key-field $SELECTED_KEY --db-host $DB_HOST --db-port $DB_PORT">),)
+        ```
+
+        As you can see, it is pretty similar to the export script passing the $SOURCEKEY and $SELECTED_KEY. Add it as an aliased script by entering a name such as dzz in the aliased name input and clicking _add to aliased_. Now to open dzz with the selected key as an image, you can click the _dzz_ button and then click _run script on this_.
+
+        **using dzz-ui to add page numbers**
+
+        If a a boook does not already exist, we can create one using `./example_boook.sh` and use fold-ui as configued above to call dzz-ui. The generated boook already includes a _page_number_ field, but we will ocr the actual image page numbers, check if the ocr result is an integer, and if so, use that result to fill in a field we specify.
+
+        An intitial issue when ocring is that page numbers may appear in different parts of a page, top, bottom, left or right, perhaps alternating or different for a new chapter. We will use fold-ui to find images with different positions of page numbers, open each with dzz-ui and draw regions around the page numbers. Dzz-ui is designed to share data with other open windows, so open as many as needed. A boook has three positions for page numbers, lower left, lower right and lower center if it is a new page. Some pages are not numbered, but we should be able to get page numbers for most.
+
+        Dzz-ui uses something called a regionpage which is a collection of regions(or rectangles) that are stored as geometry and are drawn over an image. These regions can then be used to crop rectangles, ocr the crops, and run ruling scripts on the the ocr results. A regionpage is imagined to contain a sort of concept or structural element such as page_numbers or chapter_headings, each with different regions and rulings.
+
+        First we will make a page_nums regionpage by entering "page_nums" in the large textinput in the upper right corner of a dzz-ui window. Next in the same window click at one corner of the page number and then the opposite corner to create a box, a small dot should appear to indicate each click and once a rectangle is drawn there will be a slight lag as the cropping and ocring occurs.
+
+        A bunch of things happen!
+
+        * Notice also that the rectangle appears in the other open windows!
+        * A couple new fields are now visible in the field:value pane:
+            * page_nums_key: containing the crop bytes blob
+            * page_nums_ocr: the result of running tesseract on the blob
+        * The region is automatically given a name(based on area of image) and color(random) and is visible in the upper right pane.
+        * Some keyling is generated, this contains all the shell calls for cropping, ocring and ruling. It runs automatically if the _auto run generated scripts_ checkbox is checked.
+
+        The page_nums_ocr field shows that ocring was successful(in this case it was 62), but what about cases where the left and the right are ocrd? If ocring returns an empty result, it will not clobber an existing value, so assuming that only one of the three positions will have a page number, a page number should always be found in the page_nus_ocr(fan-in), further we may wish to only allow integers for page numbers and ignore bad ocrs or other characters. We can do this using ruling which is accessible in dzz-ui in the upper right pane beside the list of regions.
+
+        Ruling grammar is is more capable, but dzz-ui offers a simplified interface for basic things. We click on the **int** button which turns green indicating that is enabled. Beside it are two input boxes the first of which is a field name and the second the field value. We can fill in the first box with "pagenum" and the second with $page_nums_ocr. By prefixing the _$_ we can attempt to substitute the field's value, which in this case must exist if the rule was applied. What we have done is used the interface to create a rule that says if the value of of the regionpage's ocr result can be an integer then set/create the field _pagenum_ with the value of the ocr field. Other rules may be useful, such as checking for any nonempty string, an exact string, a range between integers(for exmple: integers between 1 and 10 set chapter to chapter1) and perhaps other uses.
+
+        Press "regenerate scripts" and the "run script on this", there should be slight lag while the shell calls run and hopefully a new field _pagenum_ with a numerical value will appear.
+
+        This script can then be copied and pasted into fold-ui or run on all the items in fold-ui by clicking the "run script on all" button. Fold-ui stores a key containing a list of all its currently sequenced items, so the button will retrieve this list and run the keyling script on each.
