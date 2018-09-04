@@ -34,6 +34,7 @@ primitives-generate-boook --title boook --section foo 30 full --section bar 30 f
 
 # copy session.xml for fold-ui
 # this will overwrite existing session
+mkdir ~/.config/fold/
 cp example_boook_fold_ui_session.xml ~/.config/fold/session.xml
 
 # start fold-ui to show realtime updates
